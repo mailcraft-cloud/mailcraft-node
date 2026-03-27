@@ -32,6 +32,57 @@ export class MailCraftError extends Error {
   }
 }
 
+/**
+ * Fluent email builder — chainable API for constructing and sending emails.
+ *
+ * Usage:
+ *   await mail.create('welcome')
+ *     .to('john@example.com')
+ *     .data({ name: 'John', plan: 'Pro' })
+ *     .prompt('Mention dedicated support')
+ *     .action('Get Started', 'https://app.example.com')
+ *     .send()
+ */
+export class MailBuilder {
+  private readonly client: MailCraft;
+  private options: SendOptions;
+
+  constructor(client: MailCraft, type: string) {
+    this.client = client;
+    this.options = { type, to: '' };
+  }
+
+  to(email: string): this {
+    this.options.to = email;
+    return this;
+  }
+
+  data(data: Record<string, unknown>): this {
+    this.options.data = data;
+    return this;
+  }
+
+  prompt(prompt: string): this {
+    this.options.prompt = prompt;
+    return this;
+  }
+
+  action(label: string, url: string, style?: 'primary' | 'secondary'): this {
+    if (!this.options.actions) this.options.actions = [];
+    this.options.actions.push({ label, url, style });
+    return this;
+  }
+
+  actions(actions: Array<{ label: string; url: string; style?: 'primary' | 'secondary' }>): this {
+    this.options.actions = actions;
+    return this;
+  }
+
+  async send(): Promise<SendResult> {
+    return this.client.send(this.options);
+  }
+}
+
 export class MailCraft {
   private readonly apiKey: string;
   private readonly baseUrl: string;
@@ -44,6 +95,23 @@ export class MailCraft {
     this.baseUrl = config.baseUrl ?? 'https://api.mailcraft.cloud';
   }
 
+  /**
+   * Create a fluent email builder.
+   *
+   *   await mail.create('welcome')
+   *     .to('john@example.com')
+   *     .data({ name: 'John' })
+   *     .send()
+   */
+  create(type: string): MailBuilder {
+    return new MailBuilder(this, type);
+  }
+
+  /**
+   * Send an email directly with options object.
+   *
+   *   await mail.send({ type: 'welcome', to: 'john@example.com' })
+   */
   async send(options: SendOptions): Promise<SendResult> {
     if (!options.type) throw new Error('MailCraft: type is required');
     if (!options.to) throw new Error('MailCraft: to is required');
