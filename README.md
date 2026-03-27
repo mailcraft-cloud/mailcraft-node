@@ -10,17 +10,31 @@ npm install @mailcraft/sdk
 
 ## Usage
 
+### Fluent API (recommended)
+
 ```typescript
 import { MailCraft } from '@mailcraft/sdk'
 
 const mail = new MailCraft({ apiKey: 'mc_your_api_key' })
 
+await mail.create('welcome')
+  .to('john@example.com')
+  .data({ name: 'John', plan: 'Pro' })
+  .prompt('Mention dedicated support')
+  .action('Get Started', 'https://app.example.com')
+  .action('View Docs', 'https://docs.example.com', 'secondary')
+  .send()
+```
+
+### Classic API
+
+```typescript
 await mail.send({
   type: 'welcome',
   to: 'john@example.com',
   data: { name: 'John', plan: 'Pro' },
-  prompt: 'Mention dedicated support',     // optional
-  actions: [{ label: 'Get Started', url: 'https://...' }]  // optional
+  prompt: 'Mention dedicated support',
+  actions: [{ label: 'Get Started', url: 'https://...' }]
 })
 ```
 
@@ -33,7 +47,29 @@ await mail.send({
 | `apiKey` | `string` | Yes | Your MailCraft API key (`mc_...`) |
 | `baseUrl` | `string` | No | API base URL (default: `https://api.mailcraft.cloud`) |
 
-### `mail.send(options)`
+### `mail.create(type)` — Fluent builder
+
+Returns a `MailBuilder` that you chain methods on:
+
+```typescript
+mail.create('invoice')      // Start building
+  .to('billing@acme.com')   // Required: recipient
+  .data({ total: '$38' })   // Optional: template data
+  .prompt('Keep it formal') // Optional: steer AI tone
+  .action('Pay Now', url)   // Optional: add CTA button (repeatable)
+  .send()                   // Send the email
+```
+
+| Method | Description |
+|--------|-------------|
+| `.to(email)` | Set recipient email |
+| `.data(object)` | Set dynamic data |
+| `.prompt(string)` | Set AI instructions |
+| `.action(label, url, style?)` | Add a CTA button (call multiple times) |
+| `.actions(array)` | Set all actions at once |
+| `.send()` | Send the email, returns `Promise<SendResult>` |
+
+### `mail.send(options)` — Classic API
 
 | Option | Type | Required | Description |
 |--------|------|----------|-------------|
@@ -51,7 +87,7 @@ Returns `Promise<{ id: string, status: 'sent' | 'failed' | 'fallback' }>`
 import { MailCraft, MailCraftError } from '@mailcraft/sdk'
 
 try {
-  await mail.send({ type: 'welcome', to: 'john@test.com' })
+  await mail.create('welcome').to('john@test.com').send()
 } catch (err) {
   if (err instanceof MailCraftError) {
     console.log(err.statusCode) // 401, 400, 502, etc.
